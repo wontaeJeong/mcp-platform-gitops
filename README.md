@@ -142,8 +142,8 @@ Deployments reference untagged images; the Git commit SHA is stamped into
 `kustomization.yaml` (`images[].newTag`) by CI:
 
 ```
-cr.aidev.samsungds.net/mcp/mcp-auth-gateway:<commit-sha>
-cr.aidev.samsungds.net/mcp/mock-mcp-server:<commit-sha>
+cr.aidev.samsungds.net/mcp-platform/mcp-auth-gateway:<commit-sha>
+cr.aidev.samsungds.net/mcp-platform/mock-mcp-server:<commit-sha>
 ```
 
 ---

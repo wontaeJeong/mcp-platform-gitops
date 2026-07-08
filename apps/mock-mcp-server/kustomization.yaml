@@ -9,5 +9,5 @@ resources:
 
 # CI replaces newTag with the Git commit SHA on each build.
 images:
-  - name: cr.aidev.samsungds.net/mcp/mock-mcp-server
+  - name: cr.aidev.samsungds.net/mcp-platform/mock-mcp-server
     newTag: REPLACE_WITH_GIT_SHA

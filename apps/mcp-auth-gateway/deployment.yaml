@@ -22,7 +22,7 @@ spec:
       containers:
         - name: mcp-auth-gateway
           # Image tag is overridden per commit SHA via kustomization.yaml (images:).
-          image: cr.aidev.samsungds.net/mcp/mcp-auth-gateway
+          image: cr.aidev.samsungds.net/mcp-platform/mcp-auth-gateway
           args: ["--config", "/etc/mcp/config.yaml"]
           env:
             # Gateway SIGNS the internal X-MCP-Identity JWT with this secret.

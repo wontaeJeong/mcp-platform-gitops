@@ -19,7 +19,7 @@ spec:
       containers:
         - name: mock-mcp-server
           # Image tag is overridden per commit SHA via kustomization.yaml (images:).
-          image: cr.aidev.samsungds.net/mcp/mock-mcp-server
+          image: cr.aidev.samsungds.net/mcp-platform/mock-mcp-server
           env:
             # VERIFIES the internal X-MCP-Identity JWT signed by the gateway
             # using the SAME shared secret.

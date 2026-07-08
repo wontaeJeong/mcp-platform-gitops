@@ -11,5 +11,5 @@ resources:
 
 # CI replaces newTag with the Git commit SHA on each build.
 images:
-  - name: cr.aidev.samsungds.net/mcp/mcp-auth-gateway
+  - name: cr.aidev.samsungds.net/mcp-platform/mcp-auth-gateway
     newTag: REPLACE_WITH_GIT_SHA
