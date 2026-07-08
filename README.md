@@ -129,7 +129,15 @@ kubectl -n mcp-gateway get secret star-mcp-aidev-tls
 
 ## Deploy
 
-Apply the ArgoCD Applications (or point your app-of-apps at `argocd/`):
+Apply the single app-of-apps root — it manages the four child Applications so
+their Application-level sync-waves are actually ordered:
+
+```bash
+kubectl apply -f argocd/root-application.yaml
+```
+
+Or apply the children individually (note: applied this way they sync in
+parallel — the cross-app wave ordering below is only enforced via the root):
 
 ```bash
 kubectl apply -f argocd/keycloak-application.yaml

@@ -9,7 +9,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/mcp-platform-gitops.git
+    repoURL: https://github.com/wontaeJeong/mcp-platform-gitops.git
     targetRevision: main
     path: apps/keycloak
   destination:

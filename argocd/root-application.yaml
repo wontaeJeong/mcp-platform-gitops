@@ -1,0 +1,26 @@
+# App-of-apps root. Manages the four child Applications in argocd/ so their
+# Application-level sync-waves (20 -> 30 -> 40 -> 50) are actually ordered.
+# Apply this one Application to deploy everything:
+#   kubectl apply -f argocd/root-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp-platform-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/wontaeJeong/mcp-platform-gitops.git
+    targetRevision: main
+    path: argocd
+    directory:
+      recurse: false
+      # Only the child Application manifests, not this root itself.
+      exclude: root-application.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
