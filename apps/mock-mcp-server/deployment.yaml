@@ -22,16 +22,19 @@ spec:
           image: cr.aidev.samsungds.net/mcp-platform/mock-mcp-server
           env:
             # VERIFIES the internal X-MCP-Identity JWT signed by the gateway
-            # using the SAME shared secret.
-            - name: MCP_INTERNAL_JWT_SECRET
+            # using the SAME shared secret. Names must match mock-mcp-server's
+            # Settings.from_env() (see mock-mcp-server/src/mock_mcp_server/settings.py).
+            - name: MCP_IDENTITY_JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: mcp-internal-signing
                   key: jwt-secret
-            - name: MCP_INTERNAL_JWT_AUDIENCE
+            - name: MCP_IDENTITY_ISSUER
+              value: "mcp-auth-gateway"
+            - name: MCP_IDENTITY_AUDIENCE
               value: "mock-mcp-server"
-            - name: MCP_REQUIRED_LOGINID
-              value: "true"
+            - name: MCP_IDENTITY_ALGORITHM
+              value: "HS256"
           ports:
             - name: http
               containerPort: 8080
