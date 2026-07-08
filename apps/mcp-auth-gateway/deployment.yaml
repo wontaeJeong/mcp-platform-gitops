@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-auth-gateway
+  labels:
+    app: mcp-auth-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcp-auth-gateway
+  template:
+    metadata:
+      labels:
+        app: mcp-auth-gateway
+      annotations:
+        # Roll pods when the gateway config changes.
+        checksum/config: "REPLACE_WITH_CONFIG_HASH"
+    spec:
+      containers:
+        - name: mcp-auth-gateway
+          # Image tag is overridden per commit SHA via kustomization.yaml (images:).
+          image: cr.aidev.samsungds.net/mcp/mcp-auth-gateway
+          args: ["--config", "/etc/mcp/config.yaml"]
+          env:
+            # Gateway SIGNS the internal X-MCP-Identity JWT with this secret.
+            - name: MCP_INTERNAL_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-internal-signing
+                  key: jwt-secret
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mcp
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: mcp-auth-gateway-config

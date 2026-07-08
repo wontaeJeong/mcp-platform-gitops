@@ -1,0 +1,23 @@
+# Keycloak + CNPG DB. Sync-wave 10 (DB) / 20 (Keycloak) live on the resources.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/mcp-platform-gitops.git
+    targetRevision: main
+    path: apps/keycloak
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mcp-gateway
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

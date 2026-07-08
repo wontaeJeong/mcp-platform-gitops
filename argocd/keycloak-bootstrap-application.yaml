@@ -1,0 +1,23 @@
+# Keycloak realm/IdP/scope/client bootstrap. Runs after Keycloak is up (wave 30).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/mcp-platform-gitops.git
+    targetRevision: main
+    path: apps/keycloak-bootstrap
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mcp-gateway
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

@@ -1,0 +1,6 @@
+# Never commit real secret manifests. Only *.example.yaml files are tracked.
+secrets.yaml
+secret.yaml
+*-secret.yaml
+*.secret.yaml
+!secrets.example.yaml

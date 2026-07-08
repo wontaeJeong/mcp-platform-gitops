@@ -1,0 +1,60 @@
+# One-shot bootstrap Job. Uses the official Keycloak image + kcadm.sh.
+# Idempotent: safe to re-run. See README for how to re-trigger.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-bootstrap
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    # Re-run automatically after each successful ArgoCD sync of this app.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: keycloak-bootstrap
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kcadm
+          image: quay.io/keycloak/keycloak:26.0
+          command: ["/bin/bash", "/scripts/bootstrap.sh"]
+          env:
+            - name: KC_SERVER_URL
+              value: "http://keycloak.mcp-gateway.svc.cluster.local:8080"
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: username
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: password
+            - name: DS_SSO_DISCOVERY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ds-sso-oidc
+                  key: discovery-url
+            - name: DS_SSO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ds-sso-oidc
+                  key: client-id
+            - name: DS_SSO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ds-sso-oidc
+                  key: client-secret
+          volumeMounts:
+            - name: bootstrap-script
+              mountPath: /scripts
+      volumes:
+        - name: bootstrap-script
+          configMap:
+            name: keycloak-bootstrap-script
+            defaultMode: 0755

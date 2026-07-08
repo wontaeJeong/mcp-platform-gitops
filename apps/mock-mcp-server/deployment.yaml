@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-mcp-server
+  labels:
+    app: mock-mcp-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-mcp-server
+  template:
+    metadata:
+      labels:
+        app: mock-mcp-server
+    spec:
+      containers:
+        - name: mock-mcp-server
+          # Image tag is overridden per commit SHA via kustomization.yaml (images:).
+          image: cr.aidev.samsungds.net/mcp/mock-mcp-server
+          env:
+            # VERIFIES the internal X-MCP-Identity JWT signed by the gateway
+            # using the SAME shared secret.
+            - name: MCP_INTERNAL_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-internal-signing
+                  key: jwt-secret
+            - name: MCP_INTERNAL_JWT_AUDIENCE
+              value: "mock-mcp-server"
+            - name: MCP_REQUIRED_LOGINID
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi

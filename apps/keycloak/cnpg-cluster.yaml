@@ -1,0 +1,30 @@
+# CloudNativePG cluster backing Keycloak.
+# The `keycloak-db` Secret (username/password) is created manually - see README.
+# CNPG exposes the primary via the `keycloak-db-rw` Service.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: keycloak-db
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+
+  storage:
+    size: 5Gi
+
+  bootstrap:
+    initdb:
+      database: keycloak
+      owner: keycloak
+      # Reuse the manually-created keycloak-db Secret for the owner role.
+      secret:
+        name: keycloak-db
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi

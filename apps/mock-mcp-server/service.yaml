@@ -1,0 +1,18 @@
+# Internal-only Service. NO Ingress - the mock server is reachable only
+# through the gateway (in-cluster) at this address.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-mcp-server
+  labels:
+    app: mock-mcp-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+spec:
+  type: ClusterIP
+  selector:
+    app: mock-mcp-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

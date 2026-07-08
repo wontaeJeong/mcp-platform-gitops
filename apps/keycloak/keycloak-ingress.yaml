@@ -1,0 +1,25 @@
+# External Ingress for Keycloak via Contour.
+# TLS terminates here using the star-mcp-aidev-tls Secret (must exist in mcp-gateway).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  ingressClassName: contour
+  tls:
+    - hosts:
+        - auth.mcp.aidev.samsungds.net
+      secretName: star-mcp-aidev-tls
+  rules:
+    - host: auth.mcp.aidev.samsungds.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080

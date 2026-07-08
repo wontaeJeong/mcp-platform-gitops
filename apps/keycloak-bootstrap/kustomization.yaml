@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mcp-gateway
+
+# NOTE: secrets.example.yaml is intentionally NOT included - real Secrets are
+# created out-of-band (see README). Only the script ConfigMap and Job are synced.
+resources:
+  - configmap-bootstrap-script.yaml
+  - job.yaml

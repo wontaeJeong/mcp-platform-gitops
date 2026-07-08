@@ -1,0 +1,26 @@
+# External Ingress for the gateway via Contour.
+# All /mock/mcp traffic enters here; the gateway does auth + path routing.
+# TLS terminates here using the star-mcp-aidev-tls Secret (must exist in mcp-gateway).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mcp-auth-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  ingressClassName: contour
+  tls:
+    - hosts:
+        - gateway.mcp.aidev.samsungds.net
+      secretName: star-mcp-aidev-tls
+  rules:
+    - host: gateway.mcp.aidev.samsungds.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mcp-auth-gateway
+                port:
+                  number: 8080

@@ -1,0 +1,23 @@
+# mcp-auth-gateway. Sync-wave 40 (after bootstrap).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp-auth-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/mcp-platform-gitops.git
+    targetRevision: main
+    path: apps/mcp-auth-gateway
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mcp-gateway
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
