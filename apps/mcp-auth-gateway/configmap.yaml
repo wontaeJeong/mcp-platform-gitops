@@ -1,38 +1,34 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mcp-auth-gateway-config
-  annotations:
-    argocd.argoproj.io/sync-wave: "40"
-data:
-  config.yaml: |
-    server:
-      listen_addr: ":8080"
+# Raw application config for mcp-auth-gateway (not a Kind: ConfigMap manifest).
+# kustomization.yaml's configMapGenerator turns this into the
+# mcp-auth-gateway-config ConfigMap (data key: config.yaml), with a
+# content-hash suffix so pods roll automatically whenever this file changes.
+server:
+  listen_addr: ":8080"
 
-    auth:
-      issuer: "https://auth.mcp.aidev.samsungds.net/realms/mcp"
-      discovery_url: "https://auth.mcp.aidev.samsungds.net/realms/mcp/.well-known/openid-configuration"
-      loginid_claim: "loginid"
-      groups_claim: "groups"
-      username_claim: "preferred_username"
-      email_claim: "email"
-      jwks_cache_ttl: "10m"
+auth:
+  issuer: "https://auth.mcp.aidev.samsungds.net/realms/mcp"
+  discovery_url: "https://auth.mcp.aidev.samsungds.net/realms/mcp/.well-known/openid-configuration"
+  loginid_claim: "loginid"
+  groups_claim: "groups"
+  username_claim: "preferred_username"
+  email_claim: "email"
+  jwks_cache_ttl: "10m"
 
-    internal_identity:
-      issuer: "mcp-auth-gateway"
-      ttl: "60s"
-      signing_alg: "HS256"
-      secret_env: "MCP_INTERNAL_JWT_SECRET"
+internal_identity:
+  issuer: "mcp-auth-gateway"
+  ttl: "60s"
+  signing_alg: "HS256"
+  secret_env: "MCP_INTERNAL_JWT_SECRET"
 
-    servers:
-      - name: "mock"
-        external_path_prefix: "/mock"
-        mcp_path: "/mcp"
-        public_resource: "https://gateway.mcp.aidev.samsungds.net/mock/mcp"
-        audience: "https://gateway.mcp.aidev.samsungds.net/mock/mcp"
-        backend_url: "http://mock-mcp-server.mcp-gateway.svc.cluster.local:8080"
-        backend_identity_audience: "mock-mcp-server"
-        strip_external_path_prefix: true
-        required_scopes:
-          - "mcp:mock:use"
-        allowed_groups: []
+servers:
+  - name: "mock"
+    external_path_prefix: "/mock"
+    mcp_path: "/mcp"
+    public_resource: "https://gateway.mcp.aidev.samsungds.net/mock/mcp"
+    audience: "https://gateway.mcp.aidev.samsungds.net/mock/mcp"
+    backend_url: "http://mock-mcp-server.mcp-gateway.svc.cluster.local:8080"
+    backend_identity_audience: "mock-mcp-server"
+    strip_external_path_prefix: true
+    required_scopes:
+      - "mcp:mock:use"
+    allowed_groups: []

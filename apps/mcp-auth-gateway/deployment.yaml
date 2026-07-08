@@ -15,9 +15,6 @@ spec:
     metadata:
       labels:
         app: mcp-auth-gateway
-      annotations:
-        # Roll pods when the gateway config changes.
-        checksum/config: "REPLACE_WITH_CONFIG_HASH"
     spec:
       containers:
         - name: mcp-auth-gateway

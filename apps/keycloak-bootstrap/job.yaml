@@ -18,6 +18,35 @@ spec:
         app: keycloak-bootstrap
     spec:
       restartPolicy: Never
+      # The official Keycloak image has no curl/package manager (hardened
+      # UBI-micro base). Fetch the DS SSO discovery doc in a small curl
+      # initContainer and hand it to kcadm as a file instead.
+      initContainers:
+        - name: fetch-ds-sso-discovery
+          image: curlimages/curl:8.11.1
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              for i in $(seq 1 10); do
+                if curl -fsSk -o /discovery/oidc-discovery.json "$DS_SSO_DISCOVERY_URL"; then
+                  exit 0
+                fi
+                echo "retry $i/10 fetching DS SSO discovery doc..."
+                sleep 5
+              done
+              echo "failed to fetch DS SSO discovery doc from $DS_SSO_DISCOVERY_URL" >&2
+              exit 1
+          env:
+            - name: DS_SSO_DISCOVERY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ds-sso-oidc
+                  key: discovery-url
+          volumeMounts:
+            - name: discovery-doc
+              mountPath: /discovery
       containers:
         - name: kcadm
           image: quay.io/keycloak/keycloak:26.0
@@ -35,11 +64,6 @@ spec:
                 secretKeyRef:
                   name: keycloak-admin
                   key: password
-            - name: DS_SSO_DISCOVERY_URL
-              valueFrom:
-                secretKeyRef:
-                  name: ds-sso-oidc
-                  key: discovery-url
             - name: DS_SSO_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -53,8 +77,13 @@ spec:
           volumeMounts:
             - name: bootstrap-script
               mountPath: /scripts
+            - name: discovery-doc
+              mountPath: /discovery
+              readOnly: true
       volumes:
         - name: bootstrap-script
           configMap:
             name: keycloak-bootstrap-script
             defaultMode: 0755
+        - name: discovery-doc
+          emptyDir: {}

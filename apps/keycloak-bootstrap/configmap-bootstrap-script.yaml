@@ -41,11 +41,12 @@ data:
 
     ############################################################
     # 2. DS SSO identity provider (OIDC broker)
-    #    Endpoints are read from the discovery document. GNU grep/sed
-    #    are used to avoid a jq dependency in the Keycloak image.
+    #    Endpoints are read from the discovery document, fetched by the
+    #    fetch-ds-sso-discovery initContainer (the Keycloak image has no
+    #    curl). grep/sed are used to avoid a jq dependency.
     ############################################################
-    echo ">> Fetching DS SSO discovery document..."
-    DISC="$(curl -sk "$DS_SSO_DISCOVERY_URL")"
+    echo ">> Reading DS SSO discovery document..."
+    DISC="$(cat /discovery/oidc-discovery.json)"
     field() { echo "$DISC" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed -E 's/.*:[[:space:]]*"([^"]*)".*/\1/'; }
     ISSUER="$(field issuer)"
     AUTH_URL="$(field authorization_endpoint)"
@@ -55,7 +56,7 @@ data:
     LOGOUT_URL="$(field end_session_endpoint)"
 
     if [ -z "$AUTH_URL" ] || [ -z "$TOKEN_URL" ]; then
-      echo "!! Failed to parse DS SSO discovery document from ${DS_SSO_DISCOVERY_URL}" >&2
+      echo "!! Failed to parse DS SSO discovery document at /discovery/oidc-discovery.json" >&2
       exit 1
     fi
 

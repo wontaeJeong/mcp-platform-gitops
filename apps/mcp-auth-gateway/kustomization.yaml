@@ -4,10 +4,18 @@ kind: Kustomization
 namespace: mcp-gateway
 
 resources:
-  - configmap.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+
+# configmap.yaml holds the raw app config (not a Kind: ConfigMap manifest).
+# The generated ConfigMap gets a content-hash suffix, and kustomize rewrites
+# the Deployment's volume reference to match - so pods roll automatically
+# whenever this config changes. No manual checksum annotation needed.
+configMapGenerator:
+  - name: mcp-auth-gateway-config
+    files:
+      - config.yaml=configmap.yaml
 
 # CI replaces newTag with the Git commit SHA on each build.
 images:

@@ -23,8 +23,12 @@ gateway on the `mcp-gateway` namespace.
 ```
 
 - The **gateway signs** an internal `X-MCP-Identity` JWT; the **mock server
-  verifies** it. Both share the `mcp-internal-signing` Secret
-  (`MCP_INTERNAL_JWT_SECRET`).
+  verifies** it. Both containers mount the same `mcp-internal-signing` Secret
+  (key `jwt-secret`), but each maps it to its own env var name: the gateway
+  reads `MCP_INTERNAL_JWT_SECRET`, mock-mcp-server reads
+  `MCP_IDENTITY_JWT_SECRET` (see `apps/mock-mcp-server/deployment.yaml` for
+  its full identity env block, which mirrors mock-mcp-server's
+  `Settings.from_env()`).
 - **mock-mcp-server has NO public Ingress** — it is a `ClusterIP` Service reached
   only in-cluster by the gateway.
 
@@ -172,16 +176,23 @@ cr.aidev.samsungds.net/mcp-platform/mock-mcp-server:<commit-sha>
 ## Re-running the Keycloak bootstrap
 
 The bootstrap script is **idempotent** — it checks for existing objects before
-creating them. It is defined as an ArgoCD `Sync` hook, so it re-runs on every
-sync of the `keycloak-bootstrap` Application. To force a manual re-run:
+creating them. The Job is defined as an ArgoCD `Sync` hook
+(`hook-delete-policy: BeforeHookCreation`), so it is deleted and re-created
+**every time ArgoCD performs a Sync operation on the `keycloak-bootstrap`
+Application** — not on a timer, and not merely because the Job's own pod
+finished. In practice that means: the initial deploy, any `argocd app sync`,
+and any auto-sync triggered by drift in that Application's resources (the
+script ConfigMap or the Job manifest itself). Because it's idempotent, repeat
+runs are safe (they just re-verify the realm/IdP/scope/client and exit).
+
+To force a manual re-run:
 
 ```bash
-# Delete the finished Job and re-apply, or re-sync the ArgoCD app:
+argocd app sync keycloak-bootstrap
+# or, without ArgoCD:
 kubectl -n mcp-gateway delete job keycloak-bootstrap --ignore-not-found
-argocd app sync keycloak-bootstrap        # or: kubectl apply -k apps/keycloak-bootstrap
+kubectl apply -k apps/keycloak-bootstrap
 ```
-
-It does **not** re-run on its own between syncs, so it will not thrash the realm.
 
 ---
 
