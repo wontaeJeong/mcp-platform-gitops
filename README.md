@@ -69,9 +69,20 @@ argocd/                One ArgoCD Application per app dir
 
 ## Prerequisites (manual — not managed by ArgoCD)
 
+Cluster-level components assumed to be already installed:
+
+- **ArgoCD** — reconciles the Applications in `argocd/`.
+- **CloudNativePG operator** — provides the `postgresql.cnpg.io` CRDs used by `cnpg-cluster.yaml`.
+- **Contour** — the `contour` IngressClass used by both Ingresses.
+
 The namespace and all Secrets are created out-of-band. **Real Secret values are
 never committed to Git** — only `secrets.example.yaml` files documenting the
 shape live in this repo.
+
+> **DS SSO claim name:** the bootstrap maps the ADFS `loginid` claim to the
+> Keycloak `loginid` user attribute. If DS SSO emits this claim under a
+> different name (e.g. a URI), adjust the IdP mapper `config.claim` in
+> `apps/keycloak-bootstrap/configmap-bootstrap-script.yaml`.
 
 ### 1. Namespace
 
@@ -86,7 +97,9 @@ kubectl -n mcp-gateway create secret generic keycloak-admin \
   --from-literal=username=admin \
   --from-literal=password='<KEYCLOAK_ADMIN_PASSWORD>'
 
+# CNPG requires this Secret to be of type kubernetes.io/basic-auth.
 kubectl -n mcp-gateway create secret generic keycloak-db \
+  --type=kubernetes.io/basic-auth \
   --from-literal=username=keycloak \
   --from-literal=password='<KEYCLOAK_DB_PASSWORD>' \
   --from-literal=database=keycloak
