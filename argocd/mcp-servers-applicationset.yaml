@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: mcp-servers
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  syncPolicy:
+    preserveResourcesOnDeletion: false
+  generators:
+    - git:
+        repoURL: https://github.com/wontaeJeong/mcp-platform-gitops.git
+        revision: main
+        directories:
+          - path: apps/mcp-servers/*
+  template:
+    metadata:
+      name: '{{.path.basename}}-mcp-server'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/wontaeJeong/mcp-platform-gitops.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: mcp-gateway
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false

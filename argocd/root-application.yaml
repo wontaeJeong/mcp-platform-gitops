@@ -1,5 +1,6 @@
-# App-of-apps root. Manages the four child Applications in argocd/ so their
-# Application-level sync-waves (20 -> 30 -> 40 -> 50) are actually ordered.
+# App-of-apps root. Manages three fixed platform Applications plus the MCP
+# server ApplicationSet in argocd/. Wave 50 orders ApplicationSet resource
+# creation only; it does not wait for generated Application health/readiness.
 # Apply this one Application to deploy everything:
 #   kubectl apply -f argocd/root-application.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -15,7 +16,7 @@ spec:
     path: argocd
     directory:
       recurse: false
-      # Only the child Application manifests, not this root itself.
+      # Directory contains three fixed Application manifests and the MCP server ApplicationSet; exclude only this root manifest.
       exclude: root-application.yaml
   destination:
     server: https://kubernetes.default.svc

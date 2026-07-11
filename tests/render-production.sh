@@ -25,12 +25,58 @@ assert_not_contains() {
   fi
 }
 
+validate_mcp_servers_applicationset() {
+  local applicationset="$1"
+  local expected
+  local unexpected
+  local required=(
+    "apiVersion: argoproj.io/v1alpha1"
+    "kind: ApplicationSet"
+    "namespace: argocd"
+    'argocd.argoproj.io/sync-wave: "50"'
+    "goTemplate: true"
+    'goTemplateOptions: ["missingkey=error"]'
+    "repoURL: https://github.com/wontaeJeong/mcp-platform-gitops.git"
+    "revision: main"
+    "path: apps/mcp-servers/*"
+    "name: '{{.path.basename}}-mcp-server'"
+    "targetRevision: main"
+    "path: '{{.path.path}}'"
+    "project: default"
+    "server: https://kubernetes.default.svc"
+    "namespace: mcp-gateway"
+    "resources-finalizer.argocd.argoproj.io"
+    "prune: true"
+    "selfHeal: true"
+    "CreateNamespace=false"
+    "preserveResourcesOnDeletion: false"
+  )
+  local forbidden=(
+    "preserveResourcesOnDeletion: true"
+    "applicationsSync:"
+    "applicationsSync: create-only"
+    "applicationsSync: create-update"
+  )
+
+  for expected in "${required[@]}"; do
+    grep -Fq -- "$expected" "$applicationset" || return 1
+  done
+  for unexpected in "${forbidden[@]}"; do
+    if grep -Fq -- "$unexpected" "$applicationset"; then
+      return 1
+    fi
+  done
+}
+
 command -v kubectl >/dev/null 2>&1 || fail "kubectl is required"
 
-apps=(keycloak keycloak-bootstrap mcp-auth-gateway mock-mcp-server)
-for app in "${apps[@]}"; do
-  kubectl kustomize "$ROOT_DIR/apps/$app" >"$TMP_DIR/$app.yaml"
-  [ -s "$TMP_DIR/$app.yaml" ] || fail "apps/$app rendered no resources"
+app_paths=(keycloak keycloak-bootstrap mcp-auth-gateway mcp-servers/mock)
+app_names=(keycloak keycloak-bootstrap mcp-auth-gateway mock-mcp-server)
+for index in "${!app_paths[@]}"; do
+  app_path="${app_paths[$index]}"
+  app_name="${app_names[$index]}"
+  kubectl kustomize "$ROOT_DIR/apps/$app_path" >"$TMP_DIR/$app_name.yaml"
+  [ -s "$TMP_DIR/$app_name.yaml" ] || fail "apps/$app_path rendered no resources"
 done
 
 gateway="$TMP_DIR/mcp-auth-gateway.yaml"
@@ -108,8 +154,20 @@ assert_contains "$bootstrap" 'argocd.argoproj.io/sync-wave: "30"'
 assert_contains "$gateway" 'argocd.argoproj.io/sync-wave: "40"'
 assert_contains "$mock" 'argocd.argoproj.io/sync-wave: "50"'
 
+applicationset="$ROOT_DIR/argocd/mcp-servers-applicationset.yaml"
+validate_mcp_servers_applicationset "$applicationset" || fail "MCP servers ApplicationSet contract is invalid"
+[ ! -e "$ROOT_DIR/argocd/mock-application.yaml" ] || fail "obsolete explicit mock Application still exists"
+[ ! -e "$ROOT_DIR/apps/mock-mcp-server" ] || fail "obsolete flat mock Kustomize root still exists"
+
+invalid_applicationset="$TMP_DIR/invalid-mcp-servers-applicationset.yaml"
+cp "$applicationset" "$invalid_applicationset"
+printf '%s\n' '    preserveResourcesOnDeletion: true' >>"$invalid_applicationset"
+if validate_mcp_servers_applicationset "$invalid_applicationset"; then
+  fail "forbidden ApplicationSet preservation bypassed the contract"
+fi
+
 assert_contains "$ROOT_DIR/apps/mcp-auth-gateway/kustomization.yaml" "newTag: REPLACE_WITH_GIT_SHA"
-assert_contains "$ROOT_DIR/apps/mock-mcp-server/kustomization.yaml" "newTag: REPLACE_WITH_GIT_SHA"
+assert_contains "$ROOT_DIR/apps/mcp-servers/mock/kustomization.yaml" "newTag: REPLACE_WITH_GIT_SHA"
 
 assert_contains "$TMP_DIR/keycloak.yaml" "tls:"
 assert_contains "$TMP_DIR/keycloak.yaml" "host: auth.mcp.aidev.samsungds.net"
