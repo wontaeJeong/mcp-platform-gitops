@@ -1,0 +1,108 @@
+name: mcp-platform-local
+
+services:
+  registry:
+    image: registry:2
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - registry
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command:
+      - start-dev
+      - --import-realm
+    env_file:
+      - path: ${KEYCLOAK_RUNTIME_ENV_FILE:-.keycloak.env}
+        required: false
+    environment:
+      KC_HOSTNAME: http://keycloak.localhost:8081
+      KC_HTTP_PORT: "8081"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - ./keycloak/mcp-realm.json:/opt/keycloak/data/import/mcp-realm.json:ro
+    networks:
+      frontend:
+        aliases:
+          - keycloak.localhost
+    healthcheck:
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000;
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3;
+          grep -q 'HTTP/1.1 200' <&3
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  mock:
+    image: ${MOCK_IMAGE:?set MOCK_IMAGE in local/.images.env to a digest reference}
+    pull_policy: always
+    env_file:
+      - path: ${MOCK_RUNTIME_ENV_FILE:-.mock.env}
+        required: false
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8080"
+      MCP_ENDPOINT: /mcp
+      MCP_IDENTITY_ISSUER: mcp-auth-gateway
+      MCP_IDENTITY_AUDIENCE: mock-mcp-server
+      MCP_IDENTITY_ALGORITHM: HS256
+      MCP_IDENTITY_DEV_MODE: "false"
+    expose:
+      - "8080"
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=2).read()
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  gateway:
+    image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in local/.images.env to a digest reference}
+    pull_policy: always
+    env_file:
+      - path: ${GATEWAY_RUNTIME_ENV_FILE:-.gateway.env}
+        required: false
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./gateway/config.yaml:/etc/mcp-auth-gateway/config.yaml:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      mock:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  registry-data:
+
+networks:
+  frontend:
+  backend:
+    internal: true
+  registry:
