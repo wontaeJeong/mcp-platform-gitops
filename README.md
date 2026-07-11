@@ -1,7 +1,7 @@
-# mcp-platform-gitops — Mock MCP Gateway
+# mcp-platform-gitops, Mock MCP Gateway
 
-GitOps configuration for the **mock** MCP server behind a Keycloak-backed auth
-gateway on the `mcp-gateway` namespace.
+GitOps configuration for the mock MCP server catalog behind a Keycloak-backed
+auth gateway in the `mcp-gateway` namespace.
 
 ## Architecture
 
@@ -26,10 +26,10 @@ gateway on the `mcp-gateway` namespace.
   verifies** it. Both containers mount the same `mcp-internal-signing` Secret
   (key `jwt-secret`), but each maps it to its own env var name: the gateway
   reads `MCP_INTERNAL_JWT_SECRET`, mock-mcp-server reads
-  `MCP_IDENTITY_JWT_SECRET` (see `apps/mock-mcp-server/deployment.yaml` for
+  `MCP_IDENTITY_JWT_SECRET` (see `apps/mcp-servers/mock/deployment.yaml` for
   its full identity env block, which mirrors mock-mcp-server's
   `Settings.from_env()`).
-- **mock-mcp-server has NO public Ingress** — it is a `ClusterIP` Service reached
+- **mock-mcp-server has NO public Ingress**. It is a `ClusterIP` Service reached
   only in-cluster by the gateway.
 
 ## Endpoints
@@ -65,8 +65,9 @@ apps/
   keycloak/            CNPG cluster + Keycloak Deployment/Service/Ingress
   keycloak-bootstrap/  kcadm.sh bootstrap Job + generated script ConfigMap
   mcp-auth-gateway/    Gateway Deployment/Service/Ingress/ConfigMap/PDB
-  mock-mcp-server/     Mock Deployment + ClusterIP Service + NetworkPolicy
-argocd/                One ArgoCD Application per app dir
+  mcp-servers/
+    mock/              Mock Deployment + ClusterIP Service + NetworkPolicy
+argocd/                Root, 3 fixed Applications, and MCP server ApplicationSet
 local/                 Opt-in local Compose configuration
 scripts/               Local build, lifecycle, verification, and Inspector tools
 tests/                 Shell contract and production-render tests
@@ -78,7 +79,9 @@ tests/                 Shell contract and production-render tests
 
 Cluster-level components assumed to be already installed:
 
-- **ArgoCD** — reconciles the Applications in `argocd/`.
+- **ArgoCD with the ApplicationSet CRD and controller**. The root Application
+  reconciles three fixed platform Applications plus the MCP server ApplicationSet
+  in `argocd/`.
 - **CloudNativePG operator** — provides the `postgresql.cnpg.io` CRDs used by `cnpg-cluster.yaml`.
 - **Contour** — the `contour` IngressClass used by both Ingresses.
 
@@ -145,22 +148,33 @@ kubectl -n mcp-gateway get secret star-mcp-aidev-tls
 
 ## Deploy
 
-Apply the single app-of-apps root — it manages the four child Applications so
-their Application-level sync-waves are actually ordered:
+Apply the single app-of-apps root:
 
 ```bash
 kubectl apply -f argocd/root-application.yaml
 ```
 
-Or apply the children individually (note: applied this way they sync in
-parallel — the cross-app wave ordering below is only enforced via the root):
+The root manages three fixed platform Applications and one MCP server
+ApplicationSet:
 
-```bash
-kubectl apply -f argocd/keycloak-application.yaml
-kubectl apply -f argocd/keycloak-bootstrap-application.yaml
-kubectl apply -f argocd/gateway-application.yaml
-kubectl apply -f argocd/mock-application.yaml
-```
+- `argocd/keycloak-application.yaml`
+- `argocd/keycloak-bootstrap-application.yaml`
+- `argocd/gateway-application.yaml`
+- `argocd/mcp-servers-applicationset.yaml`
+
+The ApplicationSet scans `apps/mcp-servers/*`. A directory named
+`apps/mcp-servers/<name>/` generates an Argo CD Application named
+`<name>-mcp-server`, so the current mock catalog entry becomes
+`mock-mcp-server`. Removing a server directory removes the generated Application
+and prunes the workload resources it managed through the Argo CD resources
+finalizer.
+
+The mock runtime contract is unchanged: the workload name remains
+`mock-mcp-server`, the Service stays private as `ClusterIP`, NetworkPolicy only
+admits gateway pods, the gateway route remains `/mock/mcp`, the required scope
+is `mcp:mock:use`, the audience remains
+`https://gateway.mcp.aidev.samsungds.net/mock/mcp`, and CI still replaces the
+`REPLACE_WITH_GIT_SHA` image placeholder from the sibling source repository.
 
 ### ArgoCD sync order (sync-waves)
 
@@ -171,22 +185,28 @@ kubectl apply -f argocd/mock-application.yaml
 | 20 | `keycloak` | Deployment/Service/Ingress |
 | 30 | `keycloak-bootstrap` | realm/IdP/scope/client |
 | 40 | `mcp-auth-gateway` | |
-| 50 | `mock-mcp-server` | last |
+| 50 | `mcp-servers` ApplicationSet | creates generated MCP server Applications |
+
+Root sync-wave `50` orders creation of the ApplicationSet resource only. It does
+not wait for the generated `<name>-mcp-server` Applications to become Healthy or
+ready before the root sync completes.
 
 ### Image tags
 
-Deployments reference untagged images; the Git commit SHA is stamped into
-`kustomization.yaml` (`images[].newTag`) by CI:
+Deployments start with placeholder image tags; the Git commit SHA is stamped
+into `kustomization.yaml` (`images[].newTag`) by CI:
 
 ```
 cr.aidev.samsungds.net/mcp-platform/mcp-auth-gateway:<commit-sha>
 cr.aidev.samsungds.net/mcp-platform/mock-mcp-server:<commit-sha>
 ```
 
-`REPLACE_WITH_GIT_SHA` is deliberately left in both kustomizations until CI
-supplies the real source revision. Registry digest promotion and CNPG backup
-settings also require external registry/storage values; this repository does
-not invent image digests, backup endpoints, credentials, or retention policy.
+`REPLACE_WITH_GIT_SHA` is deliberately left in the gateway and mock
+kustomizations until CI supplies the real source revision. The mock image still
+comes from the sibling `mock-mcp-server` source repository. Registry digest
+promotion and CNPG backup settings also require external registry/storage
+values; this repository does not invent image digests, backup endpoints,
+credentials, or retention policy.
 
 ---
 

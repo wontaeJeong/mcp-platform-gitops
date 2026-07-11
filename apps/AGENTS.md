@@ -2,7 +2,9 @@
 
 ## OVERVIEW
 
-Four independent Kustomize boundaries for production resources in namespace `mcp-gateway`; cross-app ordering belongs in sibling `argocd/` Applications.
+Production Kustomize boundaries for resources in namespace `mcp-gateway`. Three
+platform roots are fixed Applications, while MCP servers live in a generated
+catalog under `mcp-servers/<name>/`.
 
 ## WHERE TO LOOK
 
@@ -11,13 +13,16 @@ Four independent Kustomize boundaries for production resources in namespace `mcp
 | Keycloak and database | `keycloak/` | CNPG, Deployment, Service, public Ingress |
 | Realm bootstrap | `keycloak-bootstrap/` | Sync-hook Job and generated script ConfigMap |
 | Authentication gateway | `mcp-auth-gateway/` | Deployment, Service, Ingress, PDB, generated config |
-| Mock MCP backend | `mock-mcp-server/` | Deployment, ClusterIP Service, NetworkPolicy; no Ingress |
+| MCP server catalog | `mcp-servers/<name>/` | Each directory generates `<name>-mcp-server` through the ApplicationSet |
+| Mock MCP backend | `mcp-servers/mock/` | Deployment, ClusterIP Service, NetworkPolicy; no Ingress |
 | Gateway route/auth data | `mcp-auth-gateway/configmap.yaml` | Raw application YAML, not a ConfigMap manifest |
 | Secret shapes | `*/secrets.example.yaml` | Documentation only; live Secrets are manual |
 
 ## CONVENTIONS
 
 - Every app owns its `kustomization.yaml`; do not add a parent `apps/kustomization.yaml`.
+- Add MCP backends by creating `mcp-servers/<name>/`; Argo CD generates an Application named `<name>-mcp-server`.
+- Removing `mcp-servers/<name>/` deletes the generated Application and prunes the workload resources it owned.
 - `keycloak-bootstrap/kustomization.yaml` generates the script ConfigMap from `bootstrap.sh`.
 - Bootstrap is an ArgoCD `Sync` hook with `BeforeHookCreation`; repeat syncs must safely reconcile existing objects.
 - Gateway config is a generator input named `config.yaml`; hash changes drive Deployment rollout through Kustomize references.
@@ -30,6 +35,7 @@ Four independent Kustomize boundaries for production resources in namespace `mcp
 ## ANTI-PATTERNS
 
 - Do not add public ingress or a load-balancer path to `mock-mcp-server`.
+- Do not move MCP server entries outside `mcp-servers/<name>/`; the ApplicationSet generator only scans that catalog.
 - Do not include example Secret manifests in Kustomize resources or fill them with real values.
 - Do not replace generated ConfigMaps with checked-in rendered ConfigMap manifests.
 - Do not split gateway signing and mock verification keys without changing both application contracts together.
