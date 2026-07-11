@@ -4,7 +4,15 @@ kind: Kustomization
 namespace: mcp-gateway
 
 # NOTE: secrets.example.yaml is intentionally NOT included - real Secrets are
-# created out-of-band (see README). Only the script ConfigMap and Job are synced.
+# created out-of-band (see README). Only the generated script ConfigMap and Job
+# are synced.
 resources:
-  - configmap-bootstrap-script.yaml
   - job.yaml
+
+configMapGenerator:
+  - name: keycloak-bootstrap-script
+    files:
+      - bootstrap.sh
+    options:
+      annotations:
+        argocd.argoproj.io/sync-wave: "30"

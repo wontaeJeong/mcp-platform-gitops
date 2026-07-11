@@ -12,25 +12,37 @@ metadata:
 spec:
   backoffLimit: 10
   ttlSecondsAfterFinished: 86400
+  activeDeadlineSeconds: 600
   template:
     metadata:
       labels:
         app: keycloak-bootstrap
     spec:
       restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       # The official Keycloak image has no curl/package manager (hardened
       # UBI-micro base). Fetch the DS SSO discovery doc in a small curl
       # initContainer and hand it to kcadm as a file instead.
       initContainers:
         - name: fetch-ds-sso-discovery
           image: curlimages/curl:8.11.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           command:
             - sh
             - -c
             - |
               set -eu
               for i in $(seq 1 10); do
-                if curl -fsSk -o /discovery/oidc-discovery.json "$DS_SSO_DISCOVERY_URL"; then
+                if curl --fail --silent --show-error --cacert /etc/corporate-ca/ca.crt \
+                  --output /discovery/oidc-discovery.json "$DS_SSO_DISCOVERY_URL"; then
                   exit 0
                 fi
                 echo "retry $i/10 fetching DS SSO discovery doc..."
@@ -47,9 +59,17 @@ spec:
           volumeMounts:
             - name: discovery-doc
               mountPath: /discovery
+            - name: corporate-ca
+              mountPath: /etc/corporate-ca
+              readOnly: true
       containers:
         - name: kcadm
           image: quay.io/keycloak/keycloak:26.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           command: ["/bin/bash", "/scripts/bootstrap.sh"]
           env:
             - name: KC_SERVER_URL
@@ -87,3 +107,9 @@ spec:
             defaultMode: 0755
         - name: discovery-doc
           emptyDir: {}
+        - name: corporate-ca
+          secret:
+            secretName: corporate-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
