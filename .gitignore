@@ -4,3 +4,12 @@ secret.yaml
 *-secret.yaml
 *.secret.yaml
 !secrets.example.yaml
+
+# Local Compose inputs and generated runtime artifacts.
+local/.env
+local/.images.env
+local/.*.env
+local/.verify-*
+local/.pkce-*
+local/.*.tmp.*
+scripts/__pycache__/
