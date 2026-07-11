@@ -6,6 +6,7 @@ namespace: mcp-gateway
 resources:
   - deployment.yaml
   - service.yaml
+  - networkpolicy.yaml
 
 # CI replaces newTag with the Git commit SHA on each build.
 images:

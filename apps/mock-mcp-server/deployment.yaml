@@ -16,6 +16,11 @@ spec:
       labels:
         app: mock-mcp-server
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mock-mcp-server
           # Image tag is overridden per commit SHA via kustomization.yaml (images:).
@@ -38,9 +43,22 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-          readinessProbe:
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
             httpGet:
               path: /healthz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
