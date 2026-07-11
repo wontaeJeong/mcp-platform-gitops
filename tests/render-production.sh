@@ -27,8 +27,17 @@ assert_not_contains() {
 
 validate_mcp_servers_applicationset() {
   local applicationset="$1"
+  local parser_dir
   local expected
   local unexpected
+
+  parser_dir="$(mktemp -d "$TMP_DIR/applicationset.XXXXXX")"
+  cp "$applicationset" "$parser_dir/mcp-servers-applicationset.yaml"
+  printf '%s\n' \
+    'resources:' \
+    '  - mcp-servers-applicationset.yaml' >"$parser_dir/kustomization.yaml"
+  kubectl kustomize "$parser_dir" >/dev/null || return 1
+
   local required=(
     "apiVersion: argoproj.io/v1alpha1"
     "kind: ApplicationSet"
@@ -164,6 +173,13 @@ cp "$applicationset" "$invalid_applicationset"
 printf '%s\n' '    preserveResourcesOnDeletion: true' >>"$invalid_applicationset"
 if validate_mcp_servers_applicationset "$invalid_applicationset"; then
   fail "forbidden ApplicationSet preservation bypassed the contract"
+fi
+
+malformed_applicationset="$TMP_DIR/malformed-mcp-servers-applicationset.yaml"
+cp "$applicationset" "$malformed_applicationset"
+printf '\tmalformed: true\n' >>"$malformed_applicationset"
+if validate_mcp_servers_applicationset "$malformed_applicationset" >/dev/null 2>&1; then
+  fail "malformed ApplicationSet YAML bypassed the parser"
 fi
 
 assert_contains "$ROOT_DIR/apps/mcp-auth-gateway/kustomization.yaml" "newTag: REPLACE_WITH_GIT_SHA"
