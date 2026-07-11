@@ -7,6 +7,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - pdb.yaml
 
 # configmap.yaml holds the raw app config (not a Kind: ConfigMap manifest).
 # The generated ConfigMap gets a content-hash suffix, and kustomize rewrites

@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mcp-auth-gateway
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: mcp-auth-gateway
